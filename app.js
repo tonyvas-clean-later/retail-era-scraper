@@ -1,151 +1,230 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 
+// Website to scrape
 const BASE_URL = "https://retail.era.ca"
+// Screen size
 const VIEWPORT = {width: 1080, height: 1024};
 
+// Skip collection containing all items, as more specific collection include them
 const COLLECTION_BLACKLIST = [ '/collections/all' ];
 
-console.clear();
+// Main method
 main();
 
 async function main(){
     let browser = null;
 
     try{
+        // Create browser and page for scraping
         browser = await puppeteer.launch();
         let page = await browser.newPage();
         
-        // let collections = await getCollections(page);
-        // for (let collection of collections){
-        //     let items = await getCollectionItems(page, collection);
-        // }
+        // List to hold scraped data
+        let bigData = [];
 
-        let test = [
-            'https://retail.era.ca/collections/cooling'
-            // 'https://retail.era.ca/collections/tablets',
-            // 'https://retail.era.ca/collections/servers'
-        ]
+        // Get urls of each collection
+        let collectionUrls = await getCollectionUrls(page);
 
-        for (let collectionUrl of test){
-            let items = await getCollectionItems(page, collectionUrl);
-            console.log(items);
+        for (let collectionUrl of collectionUrls){
+            // Get start time for collection
+            let collectionStart = new Date().getTime();
+
+            // List of data of all items in collection
+            let collectionItemsData = [];
+
+            // Push collection into big data object
+            bigData.push({
+                'url': collectionUrl,
+                'items': collectionItemsData
+            })
+
+            // Get page urls of each collection
+            let pageUrls = await getPageUrlsOfCollection(page, collectionUrl);
+
+            for (let pageUrl of pageUrls){
+                // Get item urls of each page
+                let itemUrls = await getItemUrlsOfPage(page, pageUrl);
+
+                for (let itemUrl of itemUrls){
+                    try {
+                        // Get parsed item data
+                        let itemData = await getItemData(page, itemUrl);
+
+                        // Push item data in item data list
+                        collectionItemsData.push(itemData);
+                    } catch (err) {
+                        console.error(`Error: main: failed to parse data for item at '${itemUrl}'`, err);
+                    }
+                }
+            }
+
+            // Get end time for collection
+            let collectionEnd = new Date().getTime();
+
+            // Print time info for collection
+            console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${collectionEnd - collectionStart}ms`);
         }
+
+        // console.log(await getCollectionItems(page, 'https://retail.era.ca/collections/cooling'));
+        // console.log(await getCollectionItems(page, 'https://retail.era.ca/collections/tablets'));
+        // console.log(await getCollectionItems(page, 'https://retail.era.ca/collections/servers'));
     }
     catch(err){
-        console.error('Error: main:', err);
+        console.error(`Error: main: Failed to navigate website`, err);
     }
     finally{
+        // Close browser if it was opened
         if (browser){
             await browser.close();
         }
     }
 }
 
-function getCollections(page){
+function getHtmlOfUrl(page, url){
     return new Promise(async (resolve, reject) => {
         try{
-            await page.goto(BASE_URL);
+            // Navigate in page
+            await page.goto(url);
             await page.setViewport(VIEWPORT);
 
-            setTimeout(async () => {
-                let html = await page.content();
-                let $ = cheerio.load(html);
-                let collectionUrls = []
-
-                let nav = $('nav')[0]
-                let anchors = $(nav).find('a')
-
-                for (let anchor of anchors){
-                    let href = $(anchor).attr('href');
-                    if (!COLLECTION_BLACKLIST.includes(href)){
-                        collectionUrls.push(`${BASE_URL}${href}`);
-                    }
-                }
-
-                resolve(collectionUrls);
-            }, 1000);
-        }
-        catch(err){
-            reject(new Error('getCollections:', err));
-        }
-    })
-}
-
-function getCollectionItems(page, collectionUrl){
-    return new Promise(async (resolve, reject) => {
-        try{
-            let pagesUrls = await getCollectionPages(page, collectionUrl);
-            let itemsUrls = [];
-
-            for (let pageUrl of pagesUrls){
-                let items = await getPageItems(page, pageUrl);
-                for (let item of items){
-                    itemsUrls.push(item);
-                }
-            }
-
-            resolve(itemsUrls)
-        }
-        catch(err){
-            reject(new Error('getCollectionItems:', err));
-        }
-    })
-}
-
-function getPageItems(page, pageUrl){
-    return new Promise(async (resolve, reject) => {
-        try{
-            let itemsUrls = [];
-
-            await page.goto(pageUrl);
-            await page.setViewport(VIEWPORT);
-
+            // Download the html
             let html = await page.content();
+            
+            // Resolve html data
+            resolve(html);
+        }
+        catch(err){
+            reject(new Error('getHtmlOfUrl', err));
+        }
+    })
+}
+
+function getCollectionUrls(page){
+    return new Promise(async (resolve, reject) => {
+        try{
+            // List of urls pointing to collections
+            let urls = []
+            
+            // Get HTML of home page
+            let html = await getHtmlOfUrl(page, BASE_URL);
+
+            // Parse HTML
             let $ = cheerio.load(html);
 
-            let itemUl = $('[data-html="productgrid-items"]')
-            let anchors = $(itemUl).find('[tabindex="-1"]')
+            // Get the first nav element
+            let nav = $('nav')[0]
+
+            // Get the anchors in nav
+            let anchors = $(nav).find('a')
+
+            // Get the urls from anchors
             for (let anchor of anchors){
                 let href = $(anchor).attr('href');
-                itemsUrls.push(`${BASE_URL}${href}`);
+                if (!COLLECTION_BLACKLIST.includes(href)){
+                    urls.push(`${BASE_URL}${href}`);
+                }
             }
 
-            resolve(itemsUrls);
+            // Resolve urls
+            resolve(urls);
         }
         catch(err){
-            reject(new Error('getPageItems:', err));
+            reject(new Error('getCollectionUrls', err));
         }
     })
 }
 
-function getCollectionPages(page, collectionUrl){
+function getPageUrlsOfCollection(page, collectionUrl){
     return new Promise(async (resolve, reject) => {
         try{
-            let pagesUrls = [];
+            // List of urls pointing to collection pages
+            let urls = [];
 
-            await page.goto(collectionUrl);
-            await page.setViewport(VIEWPORT);
+            // HTML data of collection page
+            let html = await getHtmlOfUrl(page, collectionUrl);
 
-            let html = await page.content();
+            // Parse HTML
             let $ = cheerio.load(html);
 
+            // Get page nav by class name at bottom of page
             let navs = $('.pagination--inner');
+
             if (navs.length > 0){
+                // If nav exists, then there are multiple pages
+                // Get the nav element
                 let nav = navs[0];
-                let children = $(nav).children()
-                for (let i = 0; i < children.length - 1; i++){
-                    pagesUrls.push(`${collectionUrl}?page=${i + 1}`);
+                // Get the number of elements in nav (page numbers), minus the 'Next' button
+                let count = $(nav).children().length - 1
+                for (let i = 0; i < count; i++){
+                    // Create page url
+                    urls.push(`${collectionUrl}?page=${i + 1}`);
                 }
             }
             else{
-                pagesUrls.push(collectionUrl);
+                // If there is no nav, then there is only 1 page
+                // Page url is same as collection url
+                urls.push(collectionUrl);
             }
 
-            resolve(pagesUrls);
+            resolve(urls);
         }
         catch(err){
-            reject(new Error('getCollectionPages:', err));
+            reject(new Error('getPageUrlsOfCollection', err));
+        }
+    })
+}
+
+function getItemUrlsOfPage(page, pageUrl){
+    return new Promise(async (resolve, reject) => {
+        try{
+            // List of urls pointing to item pages
+            let urls = [];
+
+            // HTML data of page
+            let html = await getHtmlOfUrl(page, pageUrl);
+
+            // Parse HTML
+            let $ = cheerio.load(html);
+
+            // Get UL element matching attribute
+            let itemUl = $('[data-html="productgrid-items"]')
+
+            // Get anchors matching attribute, pointing to each item on page
+            let anchors = $(itemUl).find('[tabindex="-1"]')
+            for (let anchor of anchors){
+                // Get href and generate url
+                let href = $(anchor).attr('href');
+                urls.push(`${BASE_URL}${href}`);
+            }
+
+            resolve(urls);
+        }
+        catch(err){
+            reject(new Error('getItemUrlsOfPage', err));
+        }
+    })
+}
+
+function getItemData(page, itemUrl){
+    return new Promise(async (resolve, reject) => {
+        try{
+            // Item data object
+            let data = {};
+            
+            // HTML data of item page
+            let html = await getHtmlOfUrl(page, itemUrl);
+
+            // Parse HTML
+            let $ = cheerio.load(html);
+
+            // Get article element
+            let article = $('article')[0];
+
+            resolve(data)
+        }
+        catch(err){
+            reject(new Error('getItemData', err));
         }
     })
 }
