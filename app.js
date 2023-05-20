@@ -239,6 +239,12 @@ function getItemData(page, itemUrl){
 
             // Populate object
             data['images'] = getItemImages($, article);
+            data['title'] = getItemTitle($, article);
+            // data['sku'] = getItemSku($, article);
+            // data['price_original'] = getItemPriceOriginal($, article);
+            // data['price_current'] = getItemPriceCurrent($, article);
+            // data['description'] = getItemDescription($, article);
+            // data['stock'] = getItemStock($, article);
 
             resolve(data)
         }
@@ -250,13 +256,16 @@ function getItemData(page, itemUrl){
 
 function getItemImages($, article){
     try {
+        // Class name for images in gallery nav
+        const CLASS_NAME = 'product-gallery--media-thumbnail-img'
+
         // List of image src
         let images = [];
 
         // Gallery element
         let gallery = $(article).children()[0];
         // Image elements in gallery nav
-        let imgs = $(gallery).find('.product-gallery--media-thumbnail-img');
+        let imgs = $(gallery).find(`.${CLASS_NAME}`);
 
         for (let img of imgs){
             // Get src from element
@@ -282,7 +291,13 @@ function getItemImages($, article){
 
 function getItemTitle($, article){
     try {
-        
+        // Class name for title
+        const CLASS_NAME = 'product-title'
+
+        // Get title by class name
+        let title = $(article).find(`.${CLASS_NAME}`).html().trim();
+
+        return title;
     } catch (err) {
         throw new Error('getItemTitle', err)
     }
