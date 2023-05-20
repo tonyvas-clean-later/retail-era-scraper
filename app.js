@@ -22,13 +22,13 @@ async function main(){
         // }
 
         let test = [
-            'https://retail.era.ca/collections/cooling',
-            'https://retail.era.ca/collections/tablets',
-            'https://retail.era.ca/collections/servers'
+            'https://retail.era.ca/collections/cooling'
+            // 'https://retail.era.ca/collections/tablets',
+            // 'https://retail.era.ca/collections/servers'
         ]
 
-        for (let collection of test){
-            let items = await getCollectionItems(page, collection);
+        for (let collectionUrl of test){
+            let items = await getCollectionItems(page, collectionUrl);
             console.log(items);
         }
     }
@@ -51,7 +51,7 @@ function getCollections(page){
             setTimeout(async () => {
                 let html = await page.content();
                 let $ = cheerio.load(html);
-                let collections = []
+                let collectionUrls = []
 
                 let nav = $('nav')[0]
                 let anchors = $(nav).find('a')
@@ -59,11 +59,11 @@ function getCollections(page){
                 for (let anchor of anchors){
                     let href = $(anchor).attr('href');
                     if (!COLLECTION_BLACKLIST.includes(href)){
-                        collections.push(`${BASE_URL}${href}`);
+                        collectionUrls.push(`${BASE_URL}${href}`);
                     }
                 }
 
-                resolve(collections);
+                resolve(collectionUrls);
             }, 1000);
         }
         catch(err){
@@ -72,12 +72,20 @@ function getCollections(page){
     })
 }
 
-function getCollectionItems(page, collection){
+function getCollectionItems(page, collectionUrl){
     return new Promise(async (resolve, reject) => {
         try{
-            let pages = await getCollectionPages(page, collection);
+            let pagesUrls = await getCollectionPages(page, collectionUrl);
+            let itemsUrls = [];
 
-            resolve(pages)
+            for (let pageUrl of pagesUrls){
+                let items = await getPageItems(page, pageUrl);
+                for (let item of items){
+                    itemsUrls.push(item);
+                }
+            }
+
+            resolve(itemsUrls)
         }
         catch(err){
             reject(new Error('getCollectionItems:', err));
@@ -85,12 +93,38 @@ function getCollectionItems(page, collection){
     })
 }
 
-function getCollectionPages(page, collection){
+function getPageItems(page, pageUrl){
     return new Promise(async (resolve, reject) => {
         try{
-            let pages = [];
+            let itemsUrls = [];
 
-            await page.goto(collection);
+            await page.goto(pageUrl);
+            await page.setViewport(VIEWPORT);
+
+            let html = await page.content();
+            let $ = cheerio.load(html);
+
+            let itemUl = $('[data-html="productgrid-items"]')
+            let anchors = $(itemUl).find('[tabindex="-1"]')
+            for (let anchor of anchors){
+                let href = $(anchor).attr('href');
+                itemsUrls.push(`${BASE_URL}${href}`);
+            }
+
+            resolve(itemsUrls);
+        }
+        catch(err){
+            reject(new Error('getPageItems:', err));
+        }
+    })
+}
+
+function getCollectionPages(page, collectionUrl){
+    return new Promise(async (resolve, reject) => {
+        try{
+            let pagesUrls = [];
+
+            await page.goto(collectionUrl);
             await page.setViewport(VIEWPORT);
 
             let html = await page.content();
@@ -101,14 +135,14 @@ function getCollectionPages(page, collection){
                 let nav = navs[0];
                 let children = $(nav).children()
                 for (let i = 0; i < children.length - 1; i++){
-                    pages.push(`${collection}?page=${i + 1}`);
+                    pagesUrls.push(`${collectionUrl}?page=${i + 1}`);
                 }
             }
             else{
-                pages.push(collection);
+                pagesUrls.push(collectionUrl);
             }
 
-            resolve(pages);
+            resolve(pagesUrls);
         }
         catch(err){
             reject(new Error('getCollectionPages:', err));
