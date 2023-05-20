@@ -20,55 +20,71 @@ async function main(){
         browser = await puppeteer.launch();
         let page = await browser.newPage();
         
-        // List to hold scraped data
-        let bigData = [];
+        // // List to hold scraped data
+        // let bigData = [];
 
-        // Get urls of each collection
-        let collectionUrls = await getCollectionUrls(page);
+        // // Get urls of each collection
+        // let collectionUrls = await getCollectionUrls(page);
 
-        for (let collectionUrl of collectionUrls){
-            // Get start time for collection
+        // for (let collectionUrl of collectionUrls){
+        //     // Get start time for collection
+        //     let collectionStart = new Date().getTime();
+
+        //     // List of data of all items in collection
+        //     let collectionItemsData = [];
+
+        //     // Push collection into big data object
+        //     bigData.push({
+        //         'url': collectionUrl,
+        //         'items': collectionItemsData
+        //     })
+
+        //     // Get page urls of each collection
+        //     let pageUrls = await getPageUrlsOfCollection(page, collectionUrl);
+
+        //     for (let pageUrl of pageUrls){
+        //         // Get item urls of each page
+        //         let itemUrls = await getItemUrlsOfPage(page, pageUrl);
+
+        //         for (let itemUrl of itemUrls){
+        //             try {
+        //                 // Get parsed item data
+        //                 let itemData = await getItemData(page, itemUrl);
+
+        //                 // Push item data in item data list
+        //                 collectionItemsData.push(itemData);
+        //             } catch (err) {
+        //                 console.error(`Error: main: failed to parse data for item at '${itemUrl}'`, err);
+        //             }
+        //         }
+        //     }
+
+        //     // Get end time for collection
+        //     let collectionEnd = new Date().getTime();
+
+        //     // Print time info for collection
+        //     console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${collectionEnd - collectionStart}ms`);
+        // }
+
+        for (let collection of ['cooling'/*, 'tablets', 'servers'*/]){
             let collectionStart = new Date().getTime();
 
-            // List of data of all items in collection
-            let collectionItemsData = [];
-
-            // Push collection into big data object
-            bigData.push({
-                'url': collectionUrl,
-                'items': collectionItemsData
-            })
-
-            // Get page urls of each collection
-            let pageUrls = await getPageUrlsOfCollection(page, collectionUrl);
-
-            for (let pageUrl of pageUrls){
-                // Get item urls of each page
+            let pageUrls = await getPageUrlsOfCollection(page, `https://retail.era.ca/collections/${collection}`);
+                for (let pageUrl of pageUrls){
                 let itemUrls = await getItemUrlsOfPage(page, pageUrl);
-
                 for (let itemUrl of itemUrls){
                     try {
-                        // Get parsed item data
                         let itemData = await getItemData(page, itemUrl);
-
-                        // Push item data in item data list
-                        collectionItemsData.push(itemData);
+                        console.log(itemData);
                     } catch (err) {
                         console.error(`Error: main: failed to parse data for item at '${itemUrl}'`, err);
                     }
                 }
             }
 
-            // Get end time for collection
             let collectionEnd = new Date().getTime();
-
-            // Print time info for collection
-            console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${collectionEnd - collectionStart}ms`);
+            console.log(`Parsed collection '${collection}' with ${pageUrls.length} pages in ${collectionEnd - collectionStart}ms`);
         }
-
-        // console.log(await getCollectionItems(page, 'https://retail.era.ca/collections/cooling'));
-        // console.log(await getCollectionItems(page, 'https://retail.era.ca/collections/tablets'));
-        // console.log(await getCollectionItems(page, 'https://retail.era.ca/collections/servers'));
     }
     catch(err){
         console.error(`Error: main: Failed to navigate website`, err);
@@ -221,10 +237,93 @@ function getItemData(page, itemUrl){
             // Get article element
             let article = $('article')[0];
 
+            // Populate object
+            data['images'] = getItemImages($, article);
+
             resolve(data)
         }
         catch(err){
             reject(new Error('getItemData', err));
         }
     })
+}
+
+function getItemImages($, article){
+    try {
+        // List of image src
+        let images = [];
+
+        // Gallery element
+        let gallery = $(article).children()[0];
+        // Image elements in gallery nav
+        let imgs = $(gallery).find('.product-gallery--media-thumbnail-img');
+
+        for (let img of imgs){
+            // Get src from element
+            let src = $(img).attr('src');
+
+            // Get the start and end index of bad data from src (shopify API)
+            let startI = src.indexOf('_');
+            let endI = src.indexOf('.', startI);
+
+            // Get substrings around the bad data
+            let start = src.substr(0, startI);
+            let end = src.substr(endI);
+
+            // Format the substrings into url
+            images.push(`https:${start}${end}`);
+        }
+
+        return images
+    } catch (err) {
+        throw new Error('getItemImages', err)
+    }
+}
+
+function getItemTitle($, article){
+    try {
+        
+    } catch (err) {
+        throw new Error('getItemTitle', err)
+    }
+}
+
+function getItemSku($, article){
+    try {
+        
+    } catch (err) {
+        throw new Error('getItemSku', err)
+    }
+}
+
+function getItemPriceOriginal($, article){
+    try {
+        
+    } catch (err) {
+        throw new Error('getItemPriceOriginal', err)
+    }
+}
+
+function getItemPriceCurrent($, article){
+    try {
+        
+    } catch (err) {
+        throw new Error('getItemPriceCurrent', err)
+    }
+}
+
+function getItemDescription($, article){
+    try {
+        
+    } catch (err) {
+        throw new Error('getItemDescription', err)
+    }
+}
+
+function getItemStock($, article){
+    try {
+        
+    } catch (err) {
+        throw new Error('getItemStock', err)
+    }
 }
