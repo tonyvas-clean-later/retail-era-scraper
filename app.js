@@ -238,12 +238,13 @@ function getItemData(page, itemUrl){
             let article = $('article')[0];
 
             // Populate object
+            data['url'] = itemUrl;
             data['images'] = getItemImages($, article);
             data['title'] = getItemTitle($, article);
-            // data['sku'] = getItemSku($, article);
+            data['sku'] = getItemSku($, article);
             // data['price_original'] = getItemPriceOriginal($, article);
             // data['price_current'] = getItemPriceCurrent($, article);
-            // data['description'] = getItemDescription($, article);
+            data['description'] = getItemDescription($, article);
             // data['stock'] = getItemStock($, article);
 
             resolve(data)
@@ -295,7 +296,7 @@ function getItemTitle($, article){
         const CLASS_NAME = 'product-title'
 
         // Get title by class name
-        let title = $(article).find(`.${CLASS_NAME}`).html().trim();
+        let title = $(article).find(`.${CLASS_NAME}`).text().trim();
 
         return title;
     } catch (err) {
@@ -305,7 +306,18 @@ function getItemTitle($, article){
 
 function getItemSku($, article){
     try {
-        
+        // Class name for SKU
+        const CLASS_NAME = 'custom-liquid'
+
+        // Get SKU by class name
+        let sku = $(article).find(`.${CLASS_NAME}`).text().trim();
+
+        // Remove excess
+        sku = sku.substr(4);            // Remove leading SKU:
+        sku = sku.replace(/\n/g, ' ');  // Remove newlines
+        sku = sku.trim();               // Remove surrounding whitespace
+
+        return sku;
     } catch (err) {
         throw new Error('getItemSku', err)
     }
@@ -329,7 +341,34 @@ function getItemPriceCurrent($, article){
 
 function getItemDescription($, article){
     try {
-        
+        // Class name for description
+        const CLASS_NAME = 'product-description'
+
+        // Get description elements
+        let descElement = $(article).find(`.${CLASS_NAME}`)
+        let descChildren = $(descElement).children();
+
+        let desc = '';
+
+        // Check if main element has children
+        if (descChildren.length > 0){
+            // If it does, then description texts are in them
+            let parts = [];
+            
+            for (let child of descChildren){
+                // Get every part of text from child
+                parts.push($(child).text().trim())
+            }
+
+            // Join the parts into 1
+            desc = parts.join('\n').trim();
+        }
+        else{
+            // If there are no children, then element contains just text
+            desc = descElement.text().trim();
+        }
+
+        return desc;
     } catch (err) {
         throw new Error('getItemDescription', err)
     }
