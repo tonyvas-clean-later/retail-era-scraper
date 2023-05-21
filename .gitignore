@@ -1,3 +1,6 @@
+# Output dir
+dump/*
+
 # Logs
 logs
 *.log

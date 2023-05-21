@@ -1,10 +1,14 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
+const fs = require('fs');
 
 // Website to scrape
 const BASE_URL = "https://retail.era.ca"
 // Screen size
 const VIEWPORT = {width: 1080, height: 1024};
+
+// Dump output dir
+const DUMP_DIR = `${__dirname}/dump`
 
 // Skip collection containing all items, as more specific collection include them
 const COLLECTION_BLACKLIST = [ '/collections/all' ];
@@ -20,74 +24,59 @@ async function main(){
         browser = await puppeteer.launch();
         let page = await browser.newPage();
         
-        // // List to hold scraped data
-        // let bigData = [];
+        // List to hold scraped data
+        let bigData = [];
 
-        // // Get urls of each collection
+        // Get urls of each collection
         // let collectionUrls = await getCollectionUrls(page);
+        // let collectionUrls = [`${BASE_URL}/collections/cooling`, `${BASE_URL}/collections/tablets`, `${BASE_URL}/collections/servers`]
+        let collectionUrls = [`${BASE_URL}/collections/cooling`]
 
-        // for (let collectionUrl of collectionUrls){
-        //     // Get start time for collection
-        //     let collectionStart = new Date().getTime();
-
-        //     // List of data of all items in collection
-        //     let collectionItemsData = [];
-
-        //     // Push collection into big data object
-        //     bigData.push({
-        //         'url': collectionUrl,
-        //         'items': collectionItemsData
-        //     })
-
-        //     // Get page urls of each collection
-        //     let pageUrls = await getPageUrlsOfCollection(page, collectionUrl);
-
-        //     for (let pageUrl of pageUrls){
-        //         // Get item urls of each page
-        //         let itemUrls = await getItemUrlsOfPage(page, pageUrl);
-
-        //         for (let itemUrl of itemUrls){
-        //             try {
-        //                 // Get parsed item data
-        //                 let itemData = await getItemData(page, itemUrl);
-
-        //                 // Push item data in item data list
-        //                 collectionItemsData.push(itemData);
-        //             } catch (err) {
-        //                 console.error(`Error: main: failed to parse data for item at '${itemUrl}'`, err);
-        //             }
-        //         }
-        //     }
-
-        //     // Get end time for collection
-        //     let collectionEnd = new Date().getTime();
-
-        //     // Print time info for collection
-        //     console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${collectionEnd - collectionStart}ms`);
-        // }
-
-        for (let collection of ['cooling'/*, 'tablets', 'servers'*/]){
+        for (let collectionUrl of collectionUrls){
+            // Get start time for collection
             let collectionStart = new Date().getTime();
 
-            let pageUrls = await getPageUrlsOfCollection(page, `https://retail.era.ca/collections/${collection}`);
-                for (let pageUrl of pageUrls){
+            // List of data of all items in collection
+            let collectionItemsData = [];
+
+            // Push collection into big data object
+            bigData.push({
+                'url': collectionUrl,
+                'items': collectionItemsData
+            })
+
+            // Get page urls of each collection
+            let pageUrls = await getPageUrlsOfCollection(page, collectionUrl);
+
+            for (let pageUrl of pageUrls){
+                // Get item urls of each page
                 let itemUrls = await getItemUrlsOfPage(page, pageUrl);
+
                 for (let itemUrl of itemUrls){
                     try {
+                        // Get parsed item data
                         let itemData = await getItemData(page, itemUrl);
-                        console.log(itemData);
+
+                        // Push item data in item data list
+                        collectionItemsData.push(itemData);
                     } catch (err) {
                         console.error(`Error: main: failed to parse data for item at '${itemUrl}'`, err);
                     }
                 }
             }
 
+            // Get end time for collection
             let collectionEnd = new Date().getTime();
-            console.log(`Parsed collection '${collection}' with ${pageUrls.length} pages in ${collectionEnd - collectionStart}ms`);
+
+            // Print time info for collection
+            console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${(collectionEnd - collectionStart)/1000} sec`);
+
+            // Dump collected data
+            await dumpBigData(bigData);
         }
     }
     catch(err){
-        console.error(`Error: main: Failed to navigate website`, err);
+        console.error(`Error: main: Failed to scrape website`, err);
     }
     finally{
         // Close browser if it was opened
@@ -95,6 +84,33 @@ async function main(){
             await browser.close();
         }
     }
+}
+
+function dumpBigData(data){
+    return new Promise(async (resolve, reject) => {
+        try {
+            // Current date
+            let date = new Date();
+            
+            // Get parts of date
+            let year = date.getFullYear();
+            let month = String(date.getMonth() + 1).padStart(2, '0');
+            let day = String(date.getDate()).padStart(2, '0');
+            let hour = String(date.getHours()).padStart(2, '0');
+            let min = String(date.getMinutes()).padStart(2, '0');
+            let sec = String(date.getSeconds()).padStart(2, '0');
+
+            // Format dump file name
+            let filename = `${year}-${month}-${day}_${hour}-${min}-${sec}.json`
+
+            // Write to file
+            fs.writeFileSync(`${DUMP_DIR}/${filename}`, JSON.stringify(data), 'utf-8');
+
+            resolve();
+        } catch (err) {
+            reject(new Error('dumpBigData', err));
+        }
+    })
 }
 
 function getHtmlOfUrl(page, url){
