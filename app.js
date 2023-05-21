@@ -68,10 +68,10 @@ async function main(){
 
             // Print time info for collection
             console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${(collectionEnd - collectionStart)/1000} sec`);
-
-            // Dump collected data
-            await dumpBigData(bigData);
         }
+
+        // Dump collected data
+        await dumpBigData(bigData);
     }
     catch(err){
         console.error(`Error: main: Failed to scrape website`, err);
