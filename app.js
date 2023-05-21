@@ -242,10 +242,10 @@ function getItemData(page, itemUrl){
             data['images'] = getItemImages($, article);
             data['title'] = getItemTitle($, article);
             data['sku'] = getItemSku($, article);
-            // data['price_original'] = getItemPriceOriginal($, article);
-            // data['price_current'] = getItemPriceCurrent($, article);
+            data['price_original'] = getItemPriceOriginal($, article);
+            data['price_current'] = getItemPriceCurrent($, article);
             data['description'] = getItemDescription($, article);
-            // data['stock'] = getItemStock($, article);
+            data['stock'] = getItemStock($, article);
 
             resolve(data)
         }
@@ -325,7 +325,14 @@ function getItemSku($, article){
 
 function getItemPriceOriginal($, article){
     try {
-        
+        // Attributes for price elements
+        const PARENT_ATTR = 'data-price-compare-container=""'
+        const PRICE_ATTR = 'data-price-compare=""'
+
+        // Get price
+        let price = $(article).find(`[${PARENT_ATTR}]`).find(`[${PRICE_ATTR}]`).text().trim();
+
+        return price;
     } catch (err) {
         throw new Error('getItemPriceOriginal', err)
     }
@@ -333,7 +340,14 @@ function getItemPriceOriginal($, article){
 
 function getItemPriceCurrent($, article){
     try {
-        
+        // Attributes for price elements
+        const PARENT_ATTR = 'data-price-container=""'
+        const PRICE_ATTR = 'data-price=""'
+
+        // Get price
+        let price = $(article).find(`[${PARENT_ATTR}]`).find(`[${PRICE_ATTR}]`).text().trim();
+
+        return price;
     } catch (err) {
         throw new Error('getItemPriceCurrent', err)
     }
@@ -376,7 +390,13 @@ function getItemDescription($, article){
 
 function getItemStock($, article){
     try {
-        
+        // Tag name for stock element
+        const TAG_NAME = 'strong'
+
+        // Get stock by tag name
+        let stock = $(article).find(TAG_NAME).text().trim();
+
+        return stock;
     } catch (err) {
         throw new Error('getItemStock', err)
     }
