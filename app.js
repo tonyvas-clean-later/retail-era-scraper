@@ -28,9 +28,7 @@ async function main(){
         let bigData = [];
 
         // Get urls of each collection
-        // let collectionUrls = await getCollectionUrls(page);
-        // let collectionUrls = [`${BASE_URL}/collections/cooling`, `${BASE_URL}/collections/tablets`, `${BASE_URL}/collections/servers`]
-        let collectionUrls = [`${BASE_URL}/collections/cooling`]
+        let collectionUrls = await getCollectionUrls(page);
 
         for (let collectionUrl of collectionUrls){
             // Get start time for collection
