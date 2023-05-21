@@ -46,6 +46,9 @@ async function main(){
             // Get page urls of each collection
             let pageUrls = await getPageUrlsOfCollection(page, collectionUrl);
 
+            // Amount of items in collection so far
+            let itemCount = 0;
+
             for (let pageUrl of pageUrls){
                 // Get item urls of each page
                 let itemUrls = await getItemUrlsOfPage(page, pageUrl);
@@ -57,6 +60,9 @@ async function main(){
 
                         // Push item data in item data list
                         collectionItemsData.push(itemData);
+
+                        // Increment item count
+                        itemCount++;
                     } catch (err) {
                         console.error(`Error: main: failed to parse data for item at '${itemUrl}'`, err);
                     }
@@ -67,7 +73,7 @@ async function main(){
             let collectionEnd = new Date().getTime();
 
             // Print time info for collection
-            console.log(`Parsed collection '${collectionUrl}' with ${pageUrls.length} pages in ${(collectionEnd - collectionStart)/1000} sec`);
+            console.log(`Parsed collection '${collectionUrl}' with ${itemCount} items in ${(collectionEnd - collectionStart)/1000} sec`);
         }
 
         // Dump collected data
